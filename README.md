@@ -20,7 +20,9 @@ The principles of **Spectral DNA** are natively scalable to temporal data. We en
 * **Spectral Stream**: Updating the DNA (state/color) at a lower frequency, drastically reducing bandwidth.
 * **AI-Native**: A foundational format for future neural decoders to restore visual fidelity with extreme efficiency.
 
-## Quick Start (Examples)
-To see the technology in action, simply drag and drop the `Example_Workflow.json` from the examples folder into ComfyUI.
-* **Portable Logic**: Integrated path resolution ensures example images load automatically.
+## Quick Start
+Drop the folder: Put ComfyUI_omni_extractor into your custom_nodes directory.
+Load the workflow: Drag & drop examples/Example_Workflow.json into ComfyUI.
+Note: If the example images don't appear automatically, simply copy the contents of the examples folder to your ComfyUI/input directory. This is a standard ComfyUI behavior for legacy nodes.
+
 * **Bonus**: Extracted ramps (DNA) are independent and can be applied to any other masks to generate infinite visual variations for free.
