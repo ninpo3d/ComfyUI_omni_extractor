@@ -1,0 +1,22 @@
+# Python bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# ComfyUI / Local stuff
+!examples/*.json
+*.png
+*.jpg
+*.jpeg
+*.webp
+!examples/*.png
+!examples/*.jpg
+!examples/*.jpeg
+!examples/*.webp
+
+results/
+temp/
