@@ -1,34 +1,26 @@
-Omni-Extractor for ComfyUI (2026)
-A set of specialized nodes designed for remastering and optimizing legacy assets into a modern, decoupled format.
+# Omni-Extractor for ComfyUI (2026)
+A set of specialized nodes designed for remastering and optimizing legacy assets into a modern, decoupled format: **Spectral DNA**.
 
-Installation
-Clone or copy the ComfyUI_omni_extractor folder into your ComfyUI/custom_nodes/ directory.
+## The Vision: Beyond Pixels
+This project isn't just about textures; it's about **Data Disentanglement**. By separating an asset's structural topology from its spectral state, we achieve up to **80% VRAM/Disk reduction** while solving legacy "energy loss" issues in VFX masks.
 
-Restart ComfyUI.
+## Installation
+1. Clone or copy the `ComfyUI_omni_extractor` folder into your `ComfyUI/custom_nodes/` directory.
+2. Restart ComfyUI.
+3. Find the nodes under the **Omni-Extractor** category.
 
-Find the nodes under the Omni-Extractor category.
+## Core Nodes
+* **Omni-Ramp (Extractor)**: Deconstructs source color textures into two separate components: a high-precision grayscale mask (Topology) and a 1D color LUT (Spectral DNA).
+* **Gradient Preview**: A validation tool that re-applies the extracted DNA onto the topology mask for real-time reconstruction preview.
+* **Asset Packer**: Handles final export with 16-bit (L/I;16) precision to ensure zero-banding.
 
-Core Nodes
-1. Omni-Ramp (Extractor)
-Deconstructs a source color texture into two separate components: a high-precision grayscale mask and a 1D color LUT (Ramp).
+## Future Horizon: Semantic Video Compression
+The principles of **Spectral DNA** are natively scalable to temporal data. We envision a transition toward **Semantic Video Compression**:
+* **Structural Stream**: Transmitting high-fidelity 16-bit Topology for motion and form.
+* **Spectral Stream**: Updating the DNA (state/color) at a lower frequency, drastically reducing bandwidth.
+* **AI-Native**: A foundational format for future neural decoders to restore visual fidelity with extreme efficiency.
 
-Why: To decouple the asset's structure from its color state for ultimate shader flexibility and VRAM efficiency.
-
-2. Gradient Preview
-A validation tool that re-applies the extracted color ramp onto the grayscale mask, allowing you to preview the final reconstruction directly within ComfyUI.
-
-3. Asset Packer
-Handles the final export to disk with a focus on data integrity.
-
-Adaptive Packing: Automatically switches between lightweight Grayscale (L/I;16) for single inputs and multi-channel containers.
-
-16-bit Support: Crucial: Always use 16-bit Grayscale for masks to ensure zero-banding during spectral reconstruction.
-
-Clean Naming: Saves files to ComfyUI/output/ using exact user-defined paths without unwanted auto-counters.
-
-Quick Start (Examples)
-To see the technology in action, simply drag and drop the Example_Workflow.json from the examples folder into ComfyUI.
-
-Portable Logic: Thanks to our integrated path resolution, the example images will load automatically from the repository folder.
-
-Bonus: Extracted ramps are independent and can be applied to any other grayscale masks to generate infinite visual variations for free.
+## Quick Start (Examples)
+To see the technology in action, simply drag and drop the `Example_Workflow.json` from the examples folder into ComfyUI.
+* **Portable Logic**: Integrated path resolution ensures example images load automatically.
+* **Bonus**: Extracted ramps (DNA) are independent and can be applied to any other masks to generate infinite visual variations for free.
