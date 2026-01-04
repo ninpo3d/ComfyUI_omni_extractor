@@ -80,7 +80,7 @@ class RampExtractor:
                 }),
                 
                 "samples": ("INT", {
-                    "default": 256, "min": 2, "max": 1024, 
+                    "default": 256, "min": 2, "max": 8192, 
                     "tooltip": "Width of the output Ramp texture. 256 is standard for VFX."
                 }),
                 
@@ -257,8 +257,8 @@ class AssetPacker:
     """
     DESCRIPTION = """
     Asset Packer.
-    Saves your extracted Grayscale mask, Ramp, and original Alpha into separate files or channels.
-    Use this to export the final assets for Unreal/Unity.
+    Hybrid Mode: Saves Masks in 16-bit Grayscale (for precision) 
+    and Atlases in 8-bit RGB (for color preservation).
     """
     def __init__(self):
         self.output_dir = folder_paths.get_output_directory()
@@ -267,9 +267,9 @@ class AssetPacker:
     def INPUT_TYPES(s):
         return {
             "required": {
-                "folder_name": ("STRING", {"default": "VFX_Packed", "tooltip": "Subfolder name in output directory ComfyUI/output/"}),
-                "file_name": ("STRING", {"default": "VFX_Asset", "tooltip": "Base filename prefix"}),
-                "bit_depth": (["8-bit", "16-bit"], {"default": "8-bit", "tooltip": "16-bit is recommended for Height Maps/Masks"}),
+                "folder_name": ("STRING", {"default": "Omni_Export"}),
+                "file_name": ("STRING", {"default": "Asset"}),
+                "bit_depth": (["8-bit", "16-bit"], {"default": "8-bit", "tooltip": "Affects Masks only. Atlases are always 8-bit RGB to preserve color."}),
                 "save_metadata": ("BOOLEAN", {"default": False}),
             },
             "optional": {
@@ -288,46 +288,85 @@ class AssetPacker:
              image_R=None, image_G=None, image_B=None, image_A=None, 
              ramp_R=None, ramp_G=None, ramp_B=None, ramp_A=None, 
              prompt=None, extra_pnginfo=None):
+        
         results = []
-        img_map = {"R": image_R, "G": image_G, "B": image_B, "A": image_A}
-        active_imgs = {k: v for k, v in img_map.items() if v is not None}
-        if not active_imgs: return {"ui": {"images": []}}
-        is_16 = bit_depth == "16-bit"
         path = os.path.join(self.output_dir, folder_name)
-        if not os.path.exists(path): os.makedirs(path)
+        if not os.path.exists(path):
+            os.makedirs(path)
+        
         metadata = PngInfo()
         if save_metadata:
             if prompt: metadata.add_text("prompt", json.dumps(prompt))
             if extra_pnginfo:
                 for x in extra_pnginfo: metadata.add_text(x, json.dumps(extra_pnginfo[x]))
-        base = next(iter(active_imgs.values()))
-        batch, h, w, _ = base.shape
-        for i in range(batch):
-            if len(active_imgs) == 1:
-                key = next(iter(active_imgs.keys()))
-                img_tensor = active_imgs[key][i, ..., 0]
-                if is_16:
-                    data = (img_tensor.cpu().numpy() * 65535).clip(0, 65535).astype(np.uint16)
+
+        def process_and_save(r, g, b, a, suffix, is_stacked_atlas=False):
+            # 1. Prepare Tensors
+            if is_stacked_atlas:
+                 # Stack all active ramps vertically
+                 active_tensors = r 
+                 if not active_tensors: return
+                 flat_rows = [t[batch_idx] for t in active_tensors for batch_idx in range(t.shape[0])]
+                 base_tensor = torch.cat(flat_rows, dim=0) # [H, W, C]
+                 tensors_to_save = [base_tensor]
+            else:
+                 # Standard batch processing for masks
+                 inputs = [r, g, b, a]
+                 if all(x is None for x in inputs): return
+                 base = next(x for x in inputs if x is not None)
+                 batch_count = base.shape[0]
+                 tensors_to_save = []
+                 for i in range(batch_count):
+                     ir = r[i,...,0] if r is not None else torch.zeros_like(base[i,...,0])
+                     ig = g[i,...,0] if g is not None else torch.zeros_like(base[i,...,0])
+                     ib = b[i,...,0] if b is not None else torch.zeros_like(base[i,...,0])
+                     ia = a[i,...,0] if a is not None else None
+                     
+                     if ia is not None:
+                         packed = torch.stack((ir, ig, ib, ia), dim=-1)
+                     else:
+                         packed = torch.stack((ir, ig, ib), dim=-1)
+                     tensors_to_save.append(packed)
+
+            # 2. Save Logic
+            for i, tensor in enumerate(tensors_to_save):
+                h, w, c = tensor.shape
+                
+                # --- HYBRID EXPORT LOGIC ---
+                # We enforce 16-bit ONLY for Masks (grayscale) to ensure precision.
+                # We enforce 8-bit for Atlases (RGB) to ensure color compatibility with PIL.
+                
+                use_16bit = (bit_depth == "16-bit") and (not is_stacked_atlas)
+
+                if use_16bit:
+                    # High Precision Mode (Single Channel Grayscale)
+                    # Perfect for UV Masks / Heightmaps
+                    data_source = tensor[..., 0] # Use Red channel as data
+                    data = (data_source.cpu().numpy() * 65535).clip(0, 65535).astype(np.uint16)
                     mode = 'I;16'
                 else:
-                    data = (img_tensor.cpu().numpy() * 255).clip(0, 255).astype(np.uint8)
-                    mode = 'L'
-            else:
-                r = image_R[i,...,0] if image_R is not None else torch.zeros((h,w))
-                g = image_G[i,...,0] if image_G is not None else torch.zeros((h,w))
-                b = image_B[i,...,0] if image_B is not None else torch.zeros((h,w))
-                if image_A is not None:
-                    packed = torch.stack((r, g, b, image_A[i,...,0]), dim=-1)
-                    mode = 'RGBA'
+                    # Standard Color Mode (8-bit)
+                    # Necessary for Color Ramps/Normals
+                    data = (tensor.cpu().numpy() * 255).clip(0, 255).astype(np.uint8)
+                    if c == 4: mode = 'RGBA'
+                    else: mode = 'RGB'
+
+                img_pil = Image.fromarray(data, mode=mode)
+                
+                if is_stacked_atlas:
+                    fname = f"{file_name}_{suffix}.png"
                 else:
-                    packed = torch.stack((r, g, b), dim=-1)
-                    mode = 'RGB'
-                if is_16:
-                    data = (packed.cpu().numpy() * 65535).clip(0, 65535).astype(np.uint16)
-                else:
-                    data = (packed.cpu().numpy() * 255).clip(0, 255).astype(np.uint8)
-            img_pil = Image.fromarray(data, mode=mode)
-            fname = f"{file_name}_{i:03}.png"
-            img_pil.save(os.path.join(path, fname), pnginfo=metadata)
-            results.append({"filename": fname, "subfolder": folder_name, "type": "output"})
+                    fname = f"{file_name}_{suffix}_{i:03}.png"
+                
+                img_pil.save(os.path.join(path, fname), pnginfo=metadata)
+                results.append({"filename": fname, "subfolder": folder_name, "type": "output"})
+
+        # Process Inputs
+        process_and_save(image_R, image_G, image_B, image_A, "Mask", is_stacked_atlas=False)
+        
+        active_ramps = [x for x in [ramp_R, ramp_G, ramp_B, ramp_A] if x is not None]
+        if active_ramps:
+            # Pass list of ramps as first argument
+            process_and_save(active_ramps, None, None, None, "Atlas", is_stacked_atlas=True)
+
         return {"ui": {"images": results}}
