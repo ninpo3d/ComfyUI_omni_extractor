@@ -1,38 +1,36 @@
-# Design Notes and Conceptual Background
+# Omni-Extractor: Architectural Design & Data Disentanglement
 
-This document describes the ideas behind the VFX Tools package.
-It is not required to use the tools.
+This document defines the core logic of the Omni-Extractor system. It serves as a framework for high-level data decomposition, designed to optimize how complex visual and structural information is stored, processed, and reconstructed.
 
 ---
 
-## Motivation
+## Motivation: Data Disentanglement
 
-Modern VFX assets often contain tightly coupled representations:
-spatial structure, state, metadata, and presentation are mixed together.
+Modern digital assets often suffer from tightly coupled representations where spatial structure, internal state, and metadata are collapsed into a single entity. 
 
 This coupling:
-- increases memory usage
-- complicates automation
-- produces noisy data for downstream AI training
+- complicates automation and state manipulation
+- increases memory overhead across processing pipelines
+- produces noisy, ambiguous data for downstream AI training
 
-The tools in this package were designed to break this coupling early.
+Omni-Extractor is designed to break this coupling at the architectural level.
 
 ---
 
 ## Disentangled Representation
 
-The core idea is to separate:
+The core principle is the explicit separation of information layers:
 
-1. Structural information  
-   (spatial layout, topology, ordering)
+1. Structural Layer  
+   (spatial topology, organization, and ordering)
 
 2. State representation  
-   (values, gradients, parameters, spectral data)
+   (values, spectral data, and internal parameters)
 
 By handling these layers independently, the pipeline gains:
-- lower VRAM pressure
-- deterministic behavior
-- cleaner intermediate data
+- deterministic reconstruction behavior
+- massive efficiency gains in data transfer
+- structural clarity enforced by design
 
 This separation is intentional and enforced by design.
 
@@ -40,37 +38,32 @@ This separation is intentional and enforced by design.
 
 ## The Algorithmic Core: Spectrum vs. Luma
 
-Traditional VFX pipelines rely on linear conversion (Rec.709) to generate masks:
-`Luma = 0.21*R + 0.72*G + 0.07*B`
+Standard reduction methods often rely on weighted averages (such as Rec.709 Luma), which mathematically destroy high-energy states and unique data identities.
 
-This approach mathematically "crushes" high-energy phenomena (Fire, Plasma, Magic) because the dominant Red/Blue channels are often weighted down, resulting in loss of perceived energy and detail.
+Omni-Extractor introduces **Spectrum-Based Reconstruction**:
 
-This package introduces **Spectrum-Based Reconstruction**:
+1.  **Clustering Analysis**: The system identifies the true dominant clusters within the dataset using K-Means analysis.
+2.  **Identity Mapping**: Every data point is mapped to its closest spectral match in the reconstructed spectrum.
+3.  **Topology Preservation**: This creates a projection that preserves the *identity* of the state rather than a mere intensity value.
 
-1.  **Palette Extraction**: Instead of calculating brightness, the algorithm extracts the dominant chromatic palette of the asset using clustering (K-Means).
-2.  **Nearest Neighbor Encoding**: Each pixel is mapped to its closest spectral match in the generated palette.
-3.  **Topology Preservation**: This creates a gradient map that preserves the *identity* of the hue (e.g., dark blue gas) rather than just its luminance value.
-
-This shift allows for the preservation of "visual energy" that is typically lost in standard grayscale conversion.
+This shift ensures that high-energy information is preserved during the decomposition process.
 
 ---
 
 ## Micro-Pipeline Model
 
-The tools form a minimal but complete pipeline:
+The system follows a strict, single-responsibility pipeline:
 
 1. Operator  
-   Transforms structured input into a reduced or projected representation.
+   Transforms input into a reduced or projected representation.
 
 2. Controller  
-   Observes and constrains the transformation.
-   Acts as a validation and decision layer.
+   Observes and constrains the transformation as a validation layer.
 
-3. Pack  
-   Encodes the result into a compact, transferable form.
+3. Encoder  
+   Packs the result into a compact, transferable form.
 
-Each stage has a single responsibility.
-Stages can be recombined or replaced without breaking the overall model.
+Each stage has a single responsibility. Stages can be recombined or replaced without breaking the overall model.
 
 ---
 
@@ -81,8 +74,7 @@ Operations are designed to be:
 - repeatable
 - free of implicit state
 
-This is critical both for production workflows and for dataset generation,
-where reproducibility directly affects training stability.
+This is critical both for production workflows and for dataset generation, where reproducibility directly affects training stability.
 
 ---
 
@@ -93,19 +85,12 @@ When applied consistently, this approach produces data that is:
 - structurally explicit
 - easier to cluster and analyze
 
-Such datasets are better suited for:
-- supervised training
-- representation learning
-- long-term reuse across models
-
-The tools do not perform training themselves.
-They prepare information in a form that makes training cleaner and more predictable.
+Such datasets are better suited for representation learning and long-term reuse across diverse models.
 
 ---
 
 ## Closing Note
 
-This package is not intended to define a standard.
-It documents one possible way to structure and preserve information.
+This package is not intended to define a standard. It documents a method to structure and preserve information by separating identity from structure.
 
 The design favors clarity over flexibility and longevity over convenience.
