@@ -1,5 +1,6 @@
 # Omni-Extractor for ComfyUI (2026)
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.18236538.svg)](https://doi.org/10.5281/zenodo.18236538)
+[![DOI](https://img.shields.io/badge/DOI-10.5281%2Fzenodo.18236538-blue.svg)](https://doi.org/10.5281/zenodo.18236538)
+
 **In simple terms:** Omni-Extractor splits a texture into two independent parts:
 
 * a **high-precision grayscale map** that stores *structure* (where things are)
